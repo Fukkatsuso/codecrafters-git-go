@@ -78,7 +78,7 @@ func main() {
 		sha1 := fmt.Sprintf("%x", SHA1Digest(store))
 		zlibContent := ZlibDeflate(store)
 
-		path := filepath.Join(".git/objects", string(sha1[:2]), string(sha1[2:]))
+		path := filepath.Join(".git/objects", sha1[:2], sha1[2:])
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating directory: %s\n", err)
 			os.Exit(1)
