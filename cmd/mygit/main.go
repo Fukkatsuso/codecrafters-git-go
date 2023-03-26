@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"compress/zlib"
+	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -57,8 +59,54 @@ func main() {
 		content := strings.Split(string(store), "\u0000")[1]
 		fmt.Print(content)
 
+	case "hash-object":
+		if len(os.Args) < 4 {
+			fmt.Fprintf(os.Stderr, "usage: mygit hash-object -w <file>\n")
+			os.Exit(1)
+		}
+
+		file := os.Args[3]
+		content, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading file: %s\n", err)
+			os.Exit(1)
+		}
+
+		header := fmt.Sprintf("blob %d\u0000", len(content))
+		store := header + string(content)
+
+		sha1 := fmt.Sprintf("%x", SHA1Digest(store))
+		zlibContent := ZlibDeflate(store)
+
+		path := filepath.Join(".git/objects", string(sha1[:2]), string(sha1[2:]))
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating directory: %s\n", err)
+			os.Exit(1)
+		}
+
+		if err := os.WriteFile(path, zlibContent, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing file: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println(sha1)
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
 	}
+}
+
+func SHA1Digest(s string) []byte {
+	h := sha1.New()
+	h.Write([]byte(s))
+	return h.Sum(nil)
+}
+
+func ZlibDeflate(s string) []byte {
+	var b bytes.Buffer
+	w := zlib.NewWriter(&b)
+	w.Write([]byte(s))
+	w.Close()
+	return b.Bytes()
 }
