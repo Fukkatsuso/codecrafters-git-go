@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -79,6 +80,41 @@ func main() {
 		}
 
 		fmt.Println(sha1)
+
+	case "ls-tree":
+		if len(os.Args) < 4 {
+			fmt.Fprintf(os.Stderr, "usage: mygit ls-tree --name-only <tree_sha>\n")
+			os.Exit(1)
+		}
+
+		sha := os.Args[3]
+
+		_, content, err := CatFile(sha)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+
+		names := make([]string, 0)
+		for i := 0; i < len(content); {
+			for content[i] != byte(' ') { // mode
+				i++
+			}
+			i++              // space
+			name := []byte{} // file/folder name
+			for content[i] != byte('\u0000') {
+				name = append(name, content[i])
+				i++
+			}
+			names = append(names, string(name))
+			i++     // \0
+			i += 20 // SHA1 (20byte)
+		}
+
+		sort.Sort(sort.StringSlice(names))
+		for _, name := range names {
+			fmt.Println(name)
+		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
