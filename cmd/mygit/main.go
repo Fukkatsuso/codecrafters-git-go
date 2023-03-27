@@ -40,23 +40,12 @@ func main() {
 		}
 
 		sha1 := os.Args[3]
-		path := filepath.Join(".git/objects", sha1[:2], sha1[2:])
 
-		zlibContent, err := os.Open(path)
+		_, content, err := CatFile(sha1)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening file: %s\n", err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-
-		r, err := zlib.NewReader(zlibContent)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading file: %s\n", err)
-			os.Exit(1)
-		}
-		defer r.Close()
-
-		store, err := ioutil.ReadAll(r)
-		content := strings.Split(string(store), "\u0000")[1]
 		fmt.Print(content)
 
 	case "hash-object":
@@ -95,6 +84,31 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
 	}
+}
+
+// header, content, errorを返す
+func CatFile(sha1 string) (string, string, error) {
+	path := filepath.Join(".git/objects", sha1[:2], sha1[2:])
+
+	zlibContent, err := os.Open(path)
+	if err != nil {
+		return "", "", fmt.Errorf("Error opening file: %s\n", err)
+	}
+
+	r, err := zlib.NewReader(zlibContent)
+	if err != nil {
+		return "", "", fmt.Errorf("Error reading file: %s\n", err)
+	}
+	defer r.Close()
+
+	store, err := ioutil.ReadAll(r)
+	if err != nil {
+		return "", "", fmt.Errorf("Error reading file: %s\n", err)
+	}
+
+	stores := strings.Split(string(store), "\u0000")
+	header, content := stores[0], stores[1]
+	return header, content, nil
 }
 
 func SHA1Digest(s string) []byte {
