@@ -46,7 +46,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		fmt.Print(content)
+		fmt.Printf("%s", content)
 
 	case "hash-object":
 		if len(os.Args) < 4 {
@@ -87,27 +87,28 @@ func main() {
 }
 
 // header, content, errorを返す
-func CatFile(sha1 string) (string, string, error) {
+func CatFile(sha1 string) ([]byte, []byte, error) {
 	path := filepath.Join(".git/objects", sha1[:2], sha1[2:])
 
 	zlibContent, err := os.Open(path)
 	if err != nil {
-		return "", "", fmt.Errorf("Error opening file: %s\n", err)
+		return nil, nil, fmt.Errorf("Error opening file: %s\n", err)
 	}
 
 	r, err := zlib.NewReader(zlibContent)
 	if err != nil {
-		return "", "", fmt.Errorf("Error reading file: %s\n", err)
+		return nil, nil, fmt.Errorf("Error reading file: %s\n", err)
 	}
 	defer r.Close()
 
 	store, err := ioutil.ReadAll(r)
 	if err != nil {
-		return "", "", fmt.Errorf("Error reading file: %s\n", err)
+		return nil, nil, fmt.Errorf("Error reading file: %s\n", err)
 	}
 
-	stores := strings.Split(string(store), "\u0000")
-	header, content := stores[0], stores[1]
+	firstNullbyteIndex := strings.Index(string(store), "\u0000")
+	header := store[:firstNullbyteIndex]
+	content := store[firstNullbyteIndex+1:]
 	return header, content, nil
 }
 
